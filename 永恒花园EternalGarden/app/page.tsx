@@ -390,8 +390,16 @@ export default function EternalGarden() {
         .legacy-layout{display:grid;grid-template-columns:35% 1fr;gap:1.5rem;align-items:flex-start;} .vault{display:flex;flex-direction:column;gap:1rem;position:sticky;top:1rem;}
         .vault-identity{padding:1.8rem 1.2rem;text-align:center;} .vault-status{display:inline-flex;padding:.25rem .8rem;border-radius:100px;font-size:.7rem;font-weight:500;margin-bottom:.6rem;}
         .vault-status.guarding{background:rgba(184,203,184,.15);color:var(--primary-dark)} .vault-status.executing{background:rgba(212,169,169,.15);color:#C08080}
-        .vault-assets{padding:1.2rem;} .deck-card{padding:1.5rem;} .deck-card-title{font-family:var(--font-title);font-size:.95rem;font-weight:600;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem;}
-        .deck-num{width:22px;height:22px;border-radius:50%;background:var(--primary);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:.65rem;}
+        .vault-assets{padding:1.2rem;} .vault-assets h4{font-family:var(--font-title);font-size:.95rem;font-weight:600;margin-bottom:.25rem;}
+        .vault-asset-groups{margin-top:.75rem;display:flex;flex-direction:column;gap:1rem;}
+        .vault-asset-cat{font-size:.78rem;color:var(--text-light);margin-bottom:.45rem;font-weight:500;}
+        .vault-asset-pill{font-size:.75rem;color:var(--text);background:#F5F7F9;border-radius:10px;padding:.55rem .75rem;margin-bottom:.4rem;line-height:1.5;}
+        .vault-asset-pill:last-child{margin-bottom:0;}
+        .deck-card{padding:1.5rem;} .deck-card-title{font-family:var(--font-title);font-size:.95rem;font-weight:600;margin-bottom:1rem;display:flex;align-items:flex-start;gap:.5rem;flex-wrap:wrap;}
+        .deck-title-wrap{display:inline-flex;flex-wrap:wrap;align-items:baseline;gap:.25rem .35rem;}
+        .deck-title-zh{font-weight:600;}
+        .deck-title-en{font-weight:400;font-size:.78rem;color:var(--text-light);font-style:italic;}
+        .deck-num{width:22px;height:22px;border-radius:50%;background:var(--primary);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:.65rem;flex-shrink:0;margin-top:.1rem;}
         .asset-table{width:100%;border-collapse:separate;border-spacing:0;font-size:.8rem;} .asset-table th,.asset-table td{padding:.7rem .8rem;border-bottom:1px solid rgba(184,203,184,.08);}
         .btn-execute{padding:.9rem 2.5rem;border-radius:var(--btn-radius);border:none;font-size:.95rem;font-weight:600;} .btn-execute.gold{background:linear-gradient(135deg,var(--accent),var(--accent-gold));} .btn-execute.green{background:var(--primary);color:#fff;}
         .countdown-time{font-size:1.8rem;font-weight:600;color:var(--primary-dark);font-family:var(--font-en);}
@@ -549,12 +557,54 @@ export default function EternalGarden() {
                 <div className="legacy-layout">
                   <div className="vault">
                     <div className="vault-identity"><div className="text-5xl mb-2">🌿</div><div className="text-lg font-semibold mb-1">花园居民</div><div className={`vault-status ${vaultStatus}`}>{vaultStatus === 'executing' ? '🔴 执行中' : '🟢 守护中'}</div><div className="text-xs text-[#B0A8A0]">{vaultHeartbeat}</div></div>
-                    <div className="vault-assets"><h4>📦 我的数字资产</h4><div className="text-xs mt-2 space-y-1"><div>🪙 BTC 冷钱包助记词（加密包）</div><div>☁️ 百度网盘 · 家庭影集</div><div>💚 微信账号遗言设置</div></div></div>
+                    <div className="vault-assets">
+                      <h4>📦 我的数字资产</h4>
+                      <div className="vault-asset-groups">
+                        <div>
+                          <div className="vault-asset-cat">💰 金融类</div>
+                          <div className="vault-asset-pill">🌚 BTC 冷钱包助记词（加密包）</div>
+                          <div className="vault-asset-pill">🏦 网银账户密钥</div>
+                        </div>
+                        <div>
+                          <div className="vault-asset-cat">📁 数据类</div>
+                          <div className="vault-asset-pill">☁️ 百度网盘 · 家庭影集</div>
+                          <div className="vault-asset-pill">📸 iCloud 照片库</div>
+                        </div>
+                        <div>
+                          <div className="vault-asset-cat">💬 社交类</div>
+                          <div className="vault-asset-pill">💚 微信账号遗言设置</div>
+                          <div className="vault-asset-pill">🖱️ Twitter 纪念账户</div>
+                          <div className="vault-asset-pill">🏛️ VR 纪念馆数据</div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                   <div className="space-y-4">
                     <div className="deck-card"><div className="deck-card-title"><span className="deck-num">1</span>资产录入 Asset Registry</div><table className="asset-table"><thead><tr><th>资产名称</th><th>类型</th><th>IPFS Hash</th></tr></thead><tbody>{assets.map((a, idx) => <tr key={a.hash + idx}><td>{a.name}</td><td>{a.type}</td><td>{a.hash}</td></tr>)}</tbody></table><button className="mt-3 px-3 py-2 rounded border border-dashed border-[#B8CBB8] text-xs" onClick={() => setShowAssetModal(true)}>+ 添加资产</button></div>
                     <div className="deck-card"><div className="deck-card-title"><span className="deck-num">2</span>受益人设置 Beneficiary Config</div><input className="form-input mb-2" value={beneficiaryAddr} onChange={(e) => setBeneficiaryAddr(e.target.value)} /><input className="form-input" value={beneficiaries[0] ?? ''} onChange={(e) => setBeneficiaries([e.target.value || '林小雨'])} placeholder="受益人姓名" /><div className={`text-xs mt-2 ${isAddressValid ? 'text-[#8EAB8E]' : 'text-[#C08080]'}`}>{beneficiaryAddr ? (isAddressValid ? '✅ 地址格式有效' : '❌ 地址格式无效') : ''}</div></div>
-                    <div className="deck-card"><div className="deck-card-title"><span className="deck-num">3</span>执行控制 Execution Control</div><div className="text-center">{!willActivated ? <button className="btn-execute gold" onClick={activateWill}>🗝️ 存入遗嘱</button> : <><button className="btn-execute green" onClick={confirmAlive}>💚 遗嘱已激活 — 刷新生存状态</button><button className="block mx-auto mt-2 text-xs underline text-[#B0A8A0]" onClick={executeLegacy}>模拟执行（模拟用户失联）</button></>}<div className="mt-4"><label className="text-xs text-[#8A8A8A]">托管资产总数</label><input className="form-input mt-1" type="number" min={0} value={totalAssets} onChange={(e) => setTotalAssets(Number(e.target.value) || 0)} /></div><div className="mt-4 text-xs text-[#8A8A8A]">生存确认倒计时</div><div className="countdown-time">{countdownText}</div><div className="text-[11px] text-[#B0A8A0]">天 : 时 : 分 : 秒</div></div></div>
+                    <div className="deck-card">
+                      <div className="deck-card-title">
+                        <span className="deck-num">3</span>
+                        <span className="deck-title-wrap">
+                          <span className="deck-title-zh">执行控制</span>
+                          <span className="deck-title-en">Execution Control</span>
+                        </span>
+                      </div>
+                      <div className="text-center">
+                        {!willActivated ? (
+                          <button className="btn-execute gold" onClick={activateWill}>🗝️ 存入遗嘱</button>
+                        ) : (
+                          <>
+                            <button className="btn-execute green" onClick={confirmAlive}>💚 遗嘱已激活 — 刷新生存状态</button>
+                            <button className="block mx-auto mt-2 text-xs underline text-[#B0A8A0]" onClick={executeLegacy}>模拟执行（模拟用户失联）</button>
+                          </>
+                        )}
+                        <div className="mt-4"><label className="text-xs text-[#8A8A8A]">托管资产总数</label><input className="form-input mt-1" type="number" min={0} value={totalAssets} onChange={(e) => setTotalAssets(Number(e.target.value) || 0)} /></div>
+                        <div className="mt-4 text-xs text-[#8A8A8A]">生存确认倒计时</div>
+                        <div className="countdown-time">{countdownText}</div>
+                        <div className="text-[11px] text-[#B0A8A0]">天 : 时 : 分 : 秒</div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
