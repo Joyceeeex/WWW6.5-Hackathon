@@ -1,5 +1,5 @@
 // src/constants.js
-export const CONTRACT_ADDRESS = "0xC53876fBA33651D2f585404A5E94ed3e525fEA6B";
+export const CONTRACT_ADDRESS = "0x404Ec1AF826c8AFd07e7318eA454F327A0f13466";
 
 export const CONTRACT_ABI = [
 	{
@@ -22,19 +22,6 @@ export const CONTRACT_ABI = [
 		"type": "event"
 	},
 	{
-		"inputs": [
-			{
-				"internalType": "string",
-				"name": "_contentHash",
-				"type": "string"
-			}
-		],
-		"name": "createBottle",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
 		"anonymous": false,
 		"inputs": [
 			{
@@ -54,39 +41,14 @@ export const CONTRACT_ABI = [
 		"type": "event"
 	},
 	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "_bottleId",
-				"type": "uint256"
-			},
-			{
-				"internalType": "string",
-				"name": "_contentHash",
-				"type": "string"
-			}
-		],
-		"name": "replyBottle",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address payable",
-				"name": "_to",
-				"type": "address"
-			}
-		],
-		"name": "tip",
-		"outputs": [],
-		"stateMutability": "payable",
-		"type": "function"
-	},
-	{
 		"anonymous": false,
 		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "bottleId",
+				"type": "uint256"
+			},
 			{
 				"indexed": false,
 				"internalType": "address",
@@ -151,6 +113,11 @@ export const CONTRACT_ABI = [
 				"internalType": "uint256",
 				"name": "timestamp",
 				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "tipAmount",
+				"type": "uint256"
 			}
 		],
 		"stateMutability": "view",
@@ -159,8 +126,21 @@ export const CONTRACT_ABI = [
 	{
 		"inputs": [
 			{
+				"internalType": "string",
+				"name": "_contentHash",
+				"type": "string"
+			}
+		],
+		"name": "createBottle",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
 				"internalType": "uint256",
-				"name": "_bottleId",
+				"name": "_id",
 				"type": "uint256"
 			}
 		],
@@ -193,23 +173,19 @@ export const CONTRACT_ABI = [
 		"type": "function"
 	},
 	{
-		"inputs": [],
-		"name": "getRandomBottle",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "id",
-				"type": "uint256"
-			},
-			{
-				"internalType": "string",
-				"name": "content",
-				"type": "string"
-			},
+		"inputs": [
 			{
 				"internalType": "address",
-				"name": "creator",
+				"name": "_u",
 				"type": "address"
+			}
+		],
+		"name": "getPickedBottles",
+		"outputs": [
+			{
+				"internalType": "uint256[]",
+				"name": "",
+				"type": "uint256[]"
 			}
 		],
 		"stateMutability": "view",
@@ -219,7 +195,7 @@ export const CONTRACT_ABI = [
 		"inputs": [
 			{
 				"internalType": "address",
-				"name": "_user",
+				"name": "_u",
 				"type": "address"
 			}
 		],
@@ -229,6 +205,43 @@ export const CONTRACT_ABI = [
 				"internalType": "uint256[]",
 				"name": "",
 				"type": "uint256[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "pickBottle",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "pickedBottles",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
 			}
 		],
 		"stateMutability": "view",
@@ -266,6 +279,42 @@ export const CONTRACT_ABI = [
 			}
 		],
 		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_bottleId",
+				"type": "uint256"
+			},
+			{
+				"internalType": "string",
+				"name": "_contentHash",
+				"type": "string"
+			}
+		],
+		"name": "replyBottle",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_bottleId",
+				"type": "uint256"
+			},
+			{
+				"internalType": "address payable",
+				"name": "_to",
+				"type": "address"
+			}
+		],
+		"name": "tip",
+		"outputs": [],
+		"stateMutability": "payable",
 		"type": "function"
 	},
 	{

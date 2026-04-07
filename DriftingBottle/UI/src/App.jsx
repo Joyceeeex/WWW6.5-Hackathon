@@ -3,137 +3,237 @@ import { ethers } from "ethers";
 import { CONTRACT_ADDRESS, CONTRACT_ABI } from "./constants";
 import "./App.css";
 
+// 漂流瓶图标组件
+const DriftingBottleIcon = () => (
+  <svg className="floating-bottle-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <path fill="#E0F7FA" d="M40,20 Q40,10 50,10 Q60,10 60,20 L60,30 Q80,35 80,60 L80,80 Q80,90 70,90 L30,90 Q20,90 20,80 L20,60 Q20,35 40,30 Z" />
+    <path fill="#81D4FA" d="M25,65 Q50,60 75,65 L75,80 Q75,85 70,85 L30,85 Q25,85 25,80 Z" />
+    <rect x="45" y="5" width="10" height="10" rx="2" fill="#8D6E63" />
+    <path d="M45,45 L55,45 L55,65 L45,65 Z" fill="#FFF9C4" opacity="0.8" />
+  </svg>
+);
+
 function App() {
   const [wallet, setWallet] = useState(null);
-  const [activeTab, setActiveTab] = useState("explore"); // explore 或 mailbox
-  
-  // 核心状态
-  const [currentBottle, setCurrentBottle] = useState(null); 
-  const [myBottles, setMyBottles] = useState([]);
-  const [replies, setReplies] = useState([]);
-  const [bottleContent, setBottleContent] = useState("");
-  const [replyText, setReplyText] = useState("");
+  const [activeTab, setActiveTab] = useState("bottle"); 
+  const [loading, setLoading] = useState(false);
+  const [currentBottle, setCurrentBottle] = useState(null);
+  const [mySentBottles, setMySentBottles] = useState([]); 
+  const [myPickedBottles, setMyPickedBottles] = useState([]); 
+  const [warmWords, setWarmWords] = useState([]);
 
   const connectWallet = async () => {
     if (!window.ethereum) return alert("请安装 MetaMask");
-    const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
-    setWallet(accounts[0]);
+    try {
+      const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+      setWallet(accounts[0]);
+    } catch (err) { console.error(err); }
   };
 
   const getContract = async () => {
+    if (!window.ethereum) return null;
     const provider = new ethers.BrowserProvider(window.ethereum);
     const signer = await provider.getSigner();
     return new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
   };
 
-  // --- 功能：捞瓶子 ---
-  const openBottle = async () => {
+  const sendBottle = async () => {
+    const input = document.getElementById("msgInput");
+    if (!input.value) return alert("请输入内容");
     try {
       const contract = await getContract();
-      const res = await contract.getRandomBottle();
-      setCurrentBottle({ id: res[0].toString(), content: res[1], creator: res[2] });
-      // 获取该瓶子的回复
-      const r = await contract.getAllReplies(res[0]);
-      setReplies(r);
-    } catch (e) { alert("海里空空的..."); }
+      const tx = await contract.createBottle(input.value);
+      await tx.wait();
+      alert("瓶子已扔进大海！");
+      input.value = "";
+    } catch (err) { alert("发送失败"); }
   };
 
-  // --- 功能：回复瓶子 ---
-  const handleReply = async (id) => {
-    if (!replyText) return;
-    const contract = await getContract();
-    const tx = await contract.replyBottle(id, replyText);
-    await tx.wait();
-    alert("回信已寄出！");
-    setReplyText("");
-    openBottle(); // 刷新显示
+  const pickRandomBottle = async () => {
+    if (!wallet) return alert("请先连接钱包");
+    setLoading(true);
+    try {
+      const contract = await getContract();
+      const tx = await contract.pickBottle();
+      await tx.wait();
+      
+      const pickedIds = await contract.getPickedBottles(wallet);
+      const lastId = pickedIds[pickedIds.length - 1];
+      const b = await contract.bottles(lastId);
+      setCurrentBottle({ id: b.id.toString(), content: b.contentHash, creator: b.creator });
+    } catch (e) { alert("寻觅失败..."); }
+    setLoading(false);
   };
 
-  // --- 功能：我的信箱（查看自己发出的瓶子收到的回信） ---
-  const loadMyMailbox = async () => {
+  const submitReply = async () => {
+    const input = document.getElementById("replyInput");
+    if (!input.value || !currentBottle) return;
+    try {
+      const contract = await getContract();
+      const tx = await contract.replyBottle(currentBottle.id, input.value);
+      await tx.wait();
+      alert("回信已寄出！");
+      setCurrentBottle(null);
+    } catch (e) { alert("回复失败"); }
+  };
+
+  const tip = async (bottleId, author) => {
+    try {
+      const contract = await getContract();
+      const tx = await contract.tip(bottleId, author, { value: ethers.parseEther("0.01") });
+      await tx.wait();
+      alert("打赏成功！");
+    } catch (e) { alert("打赏失败"); }
+  };
+
+  const loadMailboxData = async () => {
     if (!wallet) return;
-    const contract = await getContract();
-    const ids = await contract.getUserBottles(wallet);
-    const list = [];
-    for (let id of ids) {
+    try {
+      const contract = await getContract();
+      const sentIds = await contract.getUserBottles(wallet);
+      const sentData = await Promise.all(sentIds.map(async (id) => {
         const b = await contract.bottles(id);
-        const r = await contract.getAllReplies(id);
-        list.push({ id: id.toString(), content: b.contentHash, replies: r });
-    }
-    setMyBottles(list);
+        const rs = await contract.getAllReplies(id);
+        return { id: id.toString(), content: b.contentHash, replies: rs };
+      }));
+      setMySentBottles(sentData);
+
+      const pickedIds = await contract.getPickedBottles(wallet);
+      const pickedData = await Promise.all(pickedIds.map(async (id) => {
+        const b = await contract.bottles(id);
+        return { id: id.toString(), content: b.contentHash, creator: b.creator };
+      }));
+      setMyPickedBottles(pickedData);
+    } catch (e) { console.error(e); }
   };
 
-  // --- 功能：打赏（通用） ---
-  const handleTip = async (toAddress) => {
-    const contract = await getContract();
-    const tx = await contract.tip(toAddress, { value: ethers.parseEther("0.01") });
-    await tx.wait();
-    alert("打赏成功！");
+  const loadWarmWords = async () => {
+    try {
+      const contract = await getContract();
+      const total = await contract.bottleCount();
+      const warm = [];
+      for (let i = 1; i <= Number(total); i++) {
+        const b = await contract.bottles(i);
+        if (b.tipAmount > 0n) warm.push(b);
+      }
+      setWarmWords(warm);
+    } catch (e) { console.error(e); }
   };
+
+  useEffect(() => {
+    if (wallet) {
+      if (activeTab === "mail") loadMailboxData();
+      if (activeTab === "warm") loadWarmWords();
+    }
+  }, [activeTab, wallet]);
 
   return (
-    <div className="ocean">
-      <div style={{ maxWidth: "600px", margin: "auto" }}>
-        <header style={{ textAlign: "center" }}>
-          <h1>🌊 Drifting Bottle</h1>
-          {!wallet ? <button onClick={connectWallet} className="glass-card">连接钱包</button> : <p>账户: {wallet.substring(0,6)}...</p>}
-        </header>
+    <div className="ocean-container">
+      <div className="wave"></div>
+      <div className="wave"></div>
 
-        {/* 浮动的瓶子图标 (你可以换成真实的图片URL) */}
-        <div className="floating-bottle" style={{fontSize: "60px", textAlign:"center"}}>🍾</div>
+      <div className="main-content">
+        {/* 顶部状态 */}
+        <div style={{ textAlign: "right", marginBottom: "20px" }}>
+          {!wallet ? (
+            <button onClick={connectWallet}>⚓ 连接钱包</button>
+          ) : (
+            <span style={{color: "white", fontSize: "0.8rem", background: "rgba(0,0,0,0.3)", padding: "6px 15px", borderRadius: "20px", border: "1px solid rgba(255,255,255,0.2)"}}>
+              ● {wallet.substring(0, 6)}...{wallet.slice(-4)}
+            </span>
+          )}
+        </div>
 
-        <nav style={{ textAlign: "center", marginBottom: "30px" }}>
-          <button className={`tab-button ${activeTab === "explore" ? "active" : ""}`} onClick={() => setActiveTab("explore")}>探索大海</button>
-          <button className={`tab-button ${activeTab === "mailbox" ? "active" : ""}`} onClick={() => { setActiveTab("mailbox"); loadMyMailbox(); }}>我的信箱</button>
-        </nav>
+        <h1 style={{ textAlign: "center", color: "white", textShadow: "0 4px 15px rgba(0,0,0,0.4)", marginBottom: "30px" }}>🌊 链上漂流瓶</h1>
 
-        {activeTab === "explore" ? (
-          <div className="explore-section">
+        {activeTab === "bottle" && (
+          <div>
             <div className="glass-card">
-              <h3>扔一个瓶子</h3>
-              <textarea placeholder="写下你想说的话..." value={bottleContent} onChange={(e) => setBottleContent(e.target.value)} />
-              <button onClick={async () => {
-                const contract = await getContract();
-                const tx = await contract.createBottle(bottleContent);
-                await tx.wait();
-                setBottleContent("");
-                alert("已扔向远方");
-              }}>扔进大海</button>
+              <h3 style={{marginTop: 0, marginBottom: "15px"}}>✍️ 投递信件</h3>
+              <textarea id="msgInput" placeholder="写下你的故事，扔进大海..." rows="4" />
+              <button onClick={sendBottle} style={{ width: "100%", marginTop: "15px" }}>扔进大海</button>
             </div>
 
-            <button className="glass-card" style={{width: "100%", fontSize: "1.2rem"}} onClick={openBottle}>🎲 随机捞一个瓶子</button>
+            <div style={{ textAlign: "center", margin: "40px 0" }}>
+              <DriftingBottleIcon />
+              <div style={{marginTop: "25px"}}>
+                <button onClick={pickRandomBottle} disabled={loading} style={{ padding: "18px 50px", fontSize: "1.2rem", borderRadius: "40px" }}>
+                  {loading ? "寻觅中..." : "捞一个瓶子"}
+                </button>
+              </div>
+            </div>
 
             {currentBottle && (
-              <div className="glass-card">
-                <h4>来自陌生的瓶子 #{currentBottle.id}</h4>
-                <p>"{currentBottle.content}"</p>
-                <button onClick={() => handleTip(currentBottle.creator)}>💰 打赏作者</button>
-                <hr />
-                <h5>回信记录:</h5>
-                {replies.map((r, i) => <p key={i}><small>{r.replier.substring(0,6)}:</small> {r.contentHash}</p>)}
-                <input placeholder="写回信..." value={replyText} onChange={(e)=>setReplyText(e.target.value)} />
-                <button onClick={() => handleReply(currentBottle.id)}>寄出回信</button>
+              <div className="glass-card" style={{ border: "2px solid rgba(0, 242, 254, 0.5)", animation: "swell 3s ease-in-out infinite" }}>
+                <p style={{color: "#00f2fe", fontWeight: "bold", marginBottom: "10px"}}>拾起缘分：</p>
+                <p style={{fontSize: "1.1rem", lineHeight: "1.6", marginBottom: "20px"}}>“{currentBottle.content}”</p>
+                <input id="replyInput" placeholder="写个温柔的回信..." />
+                <button onClick={submitReply} style={{ width: "100%", marginTop: "12px" }}>发送回信</button>
               </div>
             )}
           </div>
-        ) : (
-          <div className="mailbox-section">
-            <h3>📬 我的瓶子收到的回信</h3>
-            {myBottles.map((b, i) => (
-              <div key={i} className="glass-card">
-                <p><strong>我的瓶子:</strong> {b.content}</p>
-                <div style={{ marginLeft: "20px", borderLeft: "2px solid #fff", paddingLeft: "10px" }}>
-                  {b.replies.length === 0 ? <p>暂无回信</p> : b.replies.map((r, idx) => (
-                    <div key={idx} style={{marginBottom: "10px"}}>
-                      <p>📩 {r.contentHash}</p>
-                      <button size="small" onClick={() => handleTip(r.replier)}>💰 打赏这位回信者</button>
+        )}
+
+        {activeTab === "mail" && (
+          <div>
+            <h3 style={{color: "white", marginBottom: "20px"}}>📬 记忆信箱</h3>
+            <div className="glass-card">
+              <h4 style={{color: "#00f2fe", marginBottom: "15px", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "10px"}}>我捡到的瓶子</h4>
+              {myPickedBottles.length === 0 ? <p style={{opacity: 0.6}}>暂无记录</p> : 
+                myPickedBottles.map((b, i) => (
+                  <div key={i} style={{marginBottom: "15px", background: "rgba(255,255,255,0.05)", padding: "12px", borderRadius: "12px"}}>
+                    <p>“{b.content}”</p>
+                    <small style={{opacity: 0.5}}>来自: {b.creator.substring(0,8)}...</small>
+                  </div>
+                ))
+              }
+            </div>
+
+            <div className="glass-card">
+              <h4 style={{color: "#00f2fe", marginBottom: "15px", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "10px"}}>收到的回信</h4>
+              {mySentBottles.map((b, i) => (
+                <div key={i} style={{marginBottom: "20px"}}>
+                  <small style={{opacity: 0.6}}>发出: "{b.content}"</small>
+                  {b.replies.map((r, j) => (
+                    <div key={j} className="glass-card" style={{background: "rgba(255,255,255,0.05)", padding: "10px", marginTop: "8px", display: "flex", justifyContent: "space-between"}}>
+                      <span>{r.contentHash}</span>
+                      <button style={{padding: "4px 10px", fontSize: "0.8rem"}} onClick={() => tip(b.id, r.replier)}>💰赏</button>
                     </div>
                   ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === "warm" && (
+          <div>
+            <h3 style={{color: "white", textAlign: "center", marginBottom: "25px"}}>✨ 暖言集</h3>
+            {warmWords.map((w, i) => (
+              <div key={i} className="glass-card" style={{textAlign: "center", border: "1px solid rgba(255, 215, 0, 0.4)"}}>
+                <p style={{fontSize: "1.2rem", fontStyle: "italic"}}>“{w.contentHash}”</p>
+                <div style={{color: "#FFD700", marginTop: "10px", fontSize: "0.9rem"}}>
+                  打赏: {ethers.formatEther(w.tipAmount)} AVAX
                 </div>
               </div>
             ))}
           </div>
         )}
+      </div>
+
+      <div className="bottom-nav">
+        <div className={`nav-item ${activeTab === "bottle" ? "active" : ""}`} onClick={() => setActiveTab("bottle")}>
+          <span className="nav-icon">💧</span>
+          <span style={{fontSize: "0.7rem"}}>大海</span>
+        </div>
+        <div className={`nav-item ${activeTab === "mail" ? "active" : ""}`} onClick={() => setActiveTab("mail")}>
+          <span className="nav-icon">📮</span>
+          <span style={{fontSize: "0.7rem"}}>信箱</span>
+        </div>
+        <div className={`nav-item ${activeTab === "warm" ? "active" : ""}`} onClick={() => setActiveTab("warm")}>
+          <span className="nav-icon">🌟</span>
+          <span style={{fontSize: "0.7rem"}}>暖言</span>
+        </div>
       </div>
     </div>
   );

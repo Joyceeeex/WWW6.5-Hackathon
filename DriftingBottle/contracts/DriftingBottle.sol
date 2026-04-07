@@ -7,6 +7,7 @@ contract DriftingBottle {
         address creator;
         string contentHash;
         uint256 timestamp;
+        uint256 tipAmount;
     }
 
     struct Reply {
@@ -18,60 +19,46 @@ contract DriftingBottle {
     uint256 public bottleCount;
     mapping(uint256 => Bottle) public bottles;
     mapping(uint256 => Reply[]) public replies;
-    // 🆕 新增：记录用户拥有的瓶子ID列表
-    mapping(address => uint256[]) public userBottles;
+    mapping(address => uint256[]) public userBottles;      // 我发出的瓶子ID
+    mapping(address => uint256[]) public pickedBottles;    // 我捡到的瓶子ID
 
     event BottleCreated(uint256 bottleId, address creator);
     event Replied(uint256 bottleId, address replier);
-    event Tipped(address from, address to, uint256 amount);
+    event Tipped(uint256 bottleId, address from, address to, uint256 amount);
 
+    // 1. 发送
     function createBottle(string memory _contentHash) public {
         bottleCount++;
-        bottles[bottleCount] = Bottle({
-            id: bottleCount,
-            creator: msg.sender,
-            contentHash: _contentHash,
-            timestamp: block.timestamp
-        });
-        
-        // 🆕 记录到用户列表
+        bottles[bottleCount] = Bottle(bottleCount, msg.sender, _contentHash, block.timestamp, 0);
         userBottles[msg.sender].push(bottleCount);
-
         emit BottleCreated(bottleCount, msg.sender);
     }
 
+    // 2. 随机捞取 (为了方便前端获取数据，我们将记录逻辑和查询分开)
+    // 这是一个非view函数，因为我们要记录“捡到了”
+    function pickBottle() public returns (uint256) {
+        require(bottleCount > 0, "No bottles");
+        uint256 randomId = (uint256(keccak256(abi.encodePacked(block.timestamp, msg.sender, bottleCount))) % bottleCount) + 1;
+        pickedBottles[msg.sender].push(randomId);
+        return randomId;
+    }
+
+    // 3. 回复
     function replyBottle(uint256 _bottleId, string memory _contentHash) public {
-        require(_bottleId > 0 && _bottleId <= bottleCount, "Invalid bottle");
-        replies[_bottleId].push(Reply({
-            replier: msg.sender,
-            contentHash: _contentHash,
-            timestamp: block.timestamp
-        }));
+        replies[_bottleId].push(Reply(msg.sender, _contentHash, block.timestamp));
         emit Replied(_bottleId, msg.sender);
     }
 
-    // 🔵 获取随机瓶子
-    function getRandomBottle() public view returns (uint256 id, string memory content, address creator) {
-        require(bottleCount > 0, "No bottles");
-        uint256 randomId = (uint256(keccak256(abi.encodePacked(block.timestamp, msg.sender, bottleCount))) % bottleCount) + 1;
-        Bottle storage b = bottles[randomId];
-        return (b.id, b.contentHash, b.creator);
-    }
-
-    // 🔵 获取某个瓶子的所有回复（修复报错的关键）
-    function getAllReplies(uint256 _bottleId) public view returns (Reply[] memory) {
-        return replies[_bottleId];
-    }
-
-    // 🔵 获取用户发过的所有瓶子ID
-    function getUserBottles(address _user) public view returns (uint256[] memory) {
-        return userBottles[_user];
-    }
-
-    // 💰 通用打赏（可以打赏作者，也可以作者打赏回信者）
-    function tip(address payable _to) public payable {
-        require(msg.value > 0, "No value");
+    // 4. 打赏
+    function tip(uint256 _bottleId, address payable _to) public payable {
+        require(msg.value > 0, "Zero amount");
+        bottles[_bottleId].tipAmount += msg.value;
         _to.transfer(msg.value);
-        emit Tipped(msg.sender, _to, msg.value);
+        emit Tipped(_bottleId, msg.sender, _to, msg.value);
     }
+
+    // --- 批量查询辅助函数 ---
+    function getUserBottles(address _u) public view returns (uint256[] memory) { return userBottles[_u]; }
+    function getPickedBottles(address _u) public view returns (uint256[] memory) { return pickedBottles[_u]; }
+    function getAllReplies(uint256 _id) public view returns (Reply[] memory) { return replies[_id]; }
 }
